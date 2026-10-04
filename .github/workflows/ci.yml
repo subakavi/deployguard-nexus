@@ -49,6 +49,10 @@ jobs:
         run: |
           python risk-engine/ci_metrics.py
 
+      - name: Run Deployment Gate
+        run: |
+          python risk-engine/deployment_gate.py
+
       - name: Display Risk Result
         run: |
           cat risk-result.json
