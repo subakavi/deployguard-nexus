@@ -1,0 +1,14 @@
+{
+  "inputs": {
+    "test_failures": 0,
+    "coverage": 90.0,
+    "security_issues": 1,
+    "changed_files": 1,
+    "previous_failures": 0
+  },
+  "result": {
+    "risk_score": 5,
+    "risk_level": "SAFE",
+    "decision": "APPROVED"
+  }
+}

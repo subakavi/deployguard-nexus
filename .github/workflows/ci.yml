@@ -29,18 +29,26 @@ jobs:
           pip install -r app/requirements.txt
           pip install bandit
 
-      - name: Run Tests
+      - name: Run Tests and Generate Reports
         run: |
-          python -m pytest -v
-
-      - name: Generate Coverage Report
-        run: |
-          python -m pytest --cov=app --cov-report=term-missing
+          python -m pytest \
+            -v \
+            --cov=app \
+            --cov-report=json:coverage.json \
+            --junitxml=test-results.xml
 
       - name: Run Security Scan
         run: |
-          python -m bandit -r app --exit-zero
+          python -m bandit \
+            -r app \
+            -f json \
+            -o bandit-report.json \
+            --exit-zero
 
-      - name: Run Risk Engine
+      - name: Run Deployment Risk Analysis
         run: |
-          python risk-engine/risk_engine.py
+          python risk-engine/ci_metrics.py
+
+      - name: Display Risk Result
+        run: |
+          cat risk-result.json
