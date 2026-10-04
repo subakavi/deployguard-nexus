@@ -3,11 +3,15 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 
+# Virtual environments
+venv/
+.venv/
+
 # Coverage
 .coverage
 coverage.xml
-htmlcov/
 coverage.json
+htmlcov/
 
 # Test reports
 test-results.xml
@@ -15,20 +19,19 @@ test-results.xml
 # Security reports
 bandit-report.json
 
-# Risk engine generated result
+# Risk engine generated files
 risk-result.json
 
-# Python virtual environments
-venv/
-.venv/
+# Dashboard generated data
+dashboard/deployments.json
 
-# Local deployment package
+# Deployment package
 deployguard-nexus.zip
 
 # IDE
 .vscode/
 .idea/
 
-# OS
+# Operating system
 .DS_Store
 Thumbs.db
