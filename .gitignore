@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Coverage
+.coverage
+coverage.xml
+htmlcov/
+coverage.json
+
+# Test reports
+test-results.xml
+
+# Security reports
+bandit-report.json
+
+# Risk engine generated result
+risk-result.json
+
+# Python virtual environments
+venv/
+.venv/
+
+# Local deployment package
+deployguard-nexus.zip
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
