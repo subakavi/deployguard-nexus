@@ -1,0 +1,37 @@
+name: DeployGuard Nexus Risk Demo
+
+on:
+  workflow_dispatch:
+
+jobs:
+
+  risk-demo:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r app/requirements.txt
+
+      - name: Generate High Risk Scenario
+        run: |
+          python risk-engine/risk_engine.py \
+            --test-failures 3 \
+            --coverage 40 \
+            --security-issues 4 \
+            --changed-files 50 \
+            --previous-failures 3
+
+      - name: Run Deployment Gate
+        run: |
+          python risk-engine/deployment_gate.py
