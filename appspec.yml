@@ -1,0 +1,25 @@
+version: 0.0
+
+os: linux
+
+files:
+  - source: /
+    destination: /opt/deployguard-nexus
+    file_exists_behavior: OVERWRITE
+
+hooks:
+
+  ApplicationStop:
+    - location: deployment/stop.sh
+      timeout: 60
+      runas: root
+
+  AfterInstall:
+    - location: deployment/install.sh
+      timeout: 300
+      runas: root
+
+  ApplicationStart:
+    - location: deployment/start.sh
+      timeout: 60
+      runas: root
