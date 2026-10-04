@@ -56,3 +56,17 @@ jobs:
       - name: Display Risk Result
         run: |
           cat risk-result.json
+
+      - name: Create Deployment Package
+        run: |
+          zip -r deployguard-nexus.zip \
+            appspec.yml \
+            app/ \
+            deployment/
+
+      - name: Upload Deployment Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployguard-nexus-package
+          path: deployguard-nexus.zip
+          retention-days: 5
