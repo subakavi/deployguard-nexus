@@ -1,0 +1,95 @@
+name: DeployGuard Nexus Self-Healing Demo
+
+on:
+  workflow_dispatch:
+
+jobs:
+
+  self-healing-demo:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r app/requirements.txt
+          pip install boto3
+
+
+      - name: Generate First Stable Deployment
+        env:
+          DEPLOYMENT_ID: "STABLE-001"
+          GITHUB_SHA: "${{ github.sha }}"
+        run: |
+          python -m pytest \
+            --cov=app \
+            --cov-report=json:coverage.json \
+            --junitxml=test-results.xml
+
+          python -m bandit \
+            -r app \
+            -f json \
+            -o bandit-report.json \
+            --exit-zero
+
+          python risk-engine/ci_metrics.py
+
+          python risk-engine/generate_dashboard_data.py
+
+
+      - name: Generate Second Stable Deployment
+        env:
+          DEPLOYMENT_ID: "STABLE-002"
+          GITHUB_SHA: "${{ github.sha }}"
+        run: |
+          python risk-engine/generate_dashboard_data.py
+
+
+      - name: Simulate Application Failure
+        run: |
+          echo "========================================"
+          echo "SIMULATING APPLICATION FAILURE"
+          echo "========================================"
+          echo "Application health check failed."
+          echo "Recovery process will begin."
+
+
+      - name: Run Self-Healing Rollback
+        env:
+          CURRENT_DEPLOYMENT_ID: "STABLE-002"
+        run: |
+          python backend/recovery_manager.py
+
+
+      - name: Display Notification Log
+        run: |
+          echo "========================================"
+          echo "DEPLOYGUARD NEXUS NOTIFICATION LOG"
+          echo "========================================"
+
+          if [ -f backend/notifications.log ]; then
+            cat backend/notifications.log
+          else
+            echo "No notification log found."
+          fi
+
+
+      - name: Display Deployment History
+        run: |
+          echo "========================================"
+          echo "DEPLOYMENT HISTORY"
+          echo "========================================"
+
+          cat dashboard/deployments.json
