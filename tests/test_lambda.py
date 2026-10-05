@@ -50,6 +50,17 @@ def test_get_deployments():
 
 
 def test_get_existing_deployment():
+
+    from deployment_store import save_deployment
+
+    save_deployment({
+        "id": "LOCAL-001",
+        "riskScore": 10,
+        "riskLevel": "SAFE",
+        "decision": "APPROVED",
+        "status": "SUCCESS"
+    })
+
     event = {
         "httpMethod": "GET",
         "path": "/deployments/LOCAL-001"
