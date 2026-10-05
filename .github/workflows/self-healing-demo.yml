@@ -4,7 +4,6 @@ on:
   workflow_dispatch:
 
 jobs:
-
   self-healing-demo:
 
     runs-on: ubuntu-latest
@@ -14,48 +13,43 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r app/requirements.txt
-          pip install boto3 bandit
+          pip install boto3 bandit pytest-cov
 
-
-      - name: Generate First Stable Deployment
-        env:
-          DEPLOYMENT_ID: "STABLE-001"
-          GITHUB_SHA: "${{ github.sha }}"
+      - name: Run Tests
         run: |
           python -m pytest \
             --cov=app \
             --cov-report=json:coverage.json \
             --junitxml=test-results.xml
 
+      - name: Run Security Scan
+        run: |
           python -m bandit \
-            -r app \
+            -r app backend \
             -f json \
             -o bandit-report.json \
             --exit-zero
 
-          python risk-engine/ci_metrics.py
-
-          python risk-engine/generate_dashboard_data.py
-
-
-      - name: Generate Second Stable Deployment
-        env:
-          DEPLOYMENT_ID: "STABLE-002"
-          GITHUB_SHA: "${{ github.sha }}"
+      - name: Create Stable Deployment History
         run: |
-          python risk-engine/generate_dashboard_data.py
+          python -c "from backend.deployment_store import save_deployment; save_deployment({'id':'STABLE-001','commitId':'stable-001','riskScore':10,'riskLevel':'SAFE','decision':'APPROVED','status':'SUCCESS','rollback':False})"
 
+          python -c "from backend.deployment_store import save_deployment; save_deployment({'id':'STABLE-002','commitId':'stable-002','riskScore':15,'riskLevel':'SAFE','decision':'APPROVED','status':'SUCCESS','rollback':False})"
+
+          echo "========================================"
+          echo "STABLE DEPLOYMENT HISTORY"
+          echo "========================================"
+
+          cat dashboard/deployments.json
 
       - name: Simulate Application Failure
         run: |
@@ -65,13 +59,11 @@ jobs:
           echo "Application health check failed."
           echo "Recovery process will begin."
 
-
       - name: Run Self-Healing Rollback
         env:
           CURRENT_DEPLOYMENT_ID: "STABLE-002"
         run: |
           python backend/recovery_manager.py
-
 
       - name: Display Notification Log
         run: |
@@ -84,7 +76,6 @@ jobs:
           else
             echo "No notification log found."
           fi
-
 
       - name: Display Deployment History
         run: |
