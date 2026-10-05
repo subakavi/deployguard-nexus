@@ -35,3 +35,5 @@ deployguard-nexus.zip
 # Operating system
 .DS_Store
 Thumbs.db
+
+backend/notifications.log

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>DeployGuard Nexus</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- Header -->
+    <header>
+        <h1>DeployGuard Nexus</h1>
+        <p>Deployment Risk Intelligence Dashboard</p>
+    </header>
+
+
+    <!-- Main Content -->
+    <main>
+
+        <!-- Summary Cards -->
+        <section class="summary">
+
+            <div class="card">
+                <h3>Risk Score</h3>
+                <p id="riskScore">--</p>
+            </div>
+
+            <div class="card">
+                <h3>Risk Level</h3>
+                <p id="riskLevel">--</p>
+            </div>
+
+            <div class="card">
+                <h3>Decision</h3>
+                <p id="decision">--</p>
+            </div>
+
+        </section>
+
+
+        <!-- Latest Deployment -->
+        <section class="panel">
+
+            <h2>Latest Deployment</h2>
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>Deployment ID</th>
+                        <th>Risk Score</th>
+                        <th>Risk Level</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+
+                <tbody id="latestDeploymentTable">
+                </tbody>
+
+            </table>
+
+        </section>
+
+
+        <!-- Deployment History -->
+        <section class="panel">
+
+            <h2>Deployment History</h2>
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Risk</th>
+                        <th>Decision</th>
+                        <th>Status</th>
+                        <th>Rollback</th>
+                    </tr>
+                </thead>
+
+                <tbody id="deploymentTable">
+                </tbody>
+
+            </table>
+
+        </section>
+
+    </main>
+
+
+    <!-- Footer -->
+    <footer>
+
+        <p>
+            DeployGuard Nexus |
+            Self-Healing Cloud Deployment Platform
+        </p>
+
+    </footer>
+
+
+    <!-- JavaScript -->
+    <script src="script.js"></script>
+
+</body>
+
+</html>

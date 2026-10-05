@@ -1,18 +1,31 @@
 import json
 import os
+import sys
 from datetime import datetime, timezone
+from pathlib import Path
 
 
-RISK_RESULT_FILE = "risk-result.json"
-OUTPUT_FILE = "dashboard/deployments.json"
+# Add the project root to Python's import path
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from backend.deployment_store import save_deployment
+
+
+RISK_RESULT_FILE = PROJECT_ROOT / "risk-result.json"
 
 
 def main():
-    if not os.path.exists(RISK_RESULT_FILE):
+
+    if not RISK_RESULT_FILE.exists():
         print("ERROR: risk-result.json not found.")
         raise SystemExit(1)
 
-    with open(RISK_RESULT_FILE, "r", encoding="utf-8") as file:
+    with open(
+        RISK_RESULT_FILE,
+        "r",
+        encoding="utf-8"
+    ) as file:
         risk_data = json.load(file)
 
     inputs = risk_data["inputs"]
@@ -20,7 +33,9 @@ def main():
 
     deployment_id = os.environ.get(
         "DEPLOYMENT_ID",
-        "LOCAL-001"
+        "LOCAL-" + datetime.now(
+            timezone.utc
+        ).strftime("%Y%m%d%H%M%S")
     )
 
     commit_id = os.environ.get(
@@ -28,7 +43,16 @@ def main():
         "local"
     )[:8]
 
-    timestamp = datetime.now(timezone.utc).isoformat()
+    timestamp = datetime.now(
+        timezone.utc
+    ).isoformat()
+
+    if result["decision"] == "APPROVED":
+        status = "SUCCESS"
+    elif result["decision"] == "VALIDATION_REQUIRED":
+        status = "VALIDATION"
+    else:
+        status = "BLOCKED"
 
     deployment = {
         "id": deployment_id,
@@ -36,11 +60,7 @@ def main():
         "riskScore": result["risk_score"],
         "riskLevel": result["risk_level"],
         "decision": result["decision"],
-        "status": (
-            "SUCCESS"
-            if result["decision"] == "APPROVED"
-            else "BLOCKED"
-        ),
+        "status": status,
         "rollback": False,
         "timestamp": timestamp,
         "metrics": {
@@ -52,32 +72,38 @@ def main():
         }
     }
 
-    dashboard_data = {
-        "summary": {
-            "riskScore": result["risk_score"],
-            "riskLevel": result["risk_level"],
-            "decision": result["decision"]
-        },
-        "deployments": [
-            deployment
-        ]
-    }
+    # Save the deployment record
+    saved_deployment = save_deployment(
+        deployment
+    )
 
-    os.makedirs("dashboard", exist_ok=True)
-
-    with open(OUTPUT_FILE, "w", encoding="utf-8") as file:
-        json.dump(
-            dashboard_data,
-            file,
-            indent=4
-        )
-
-    print("Dashboard data generated successfully.")
-    print(f"Deployment ID : {deployment_id}")
-    print(f"Risk Score    : {result['risk_score']}")
-    print(f"Risk Level    : {result['risk_level']}")
-    print(f"Decision      : {result['decision']}")
-    print(f"Output        : {OUTPUT_FILE}")
+    print("========================================")
+    print("       DEPLOYGUARD NEXUS")
+    print("       DEPLOYMENT RECORD")
+    print("========================================")
+    print()
+    print(
+        f"Deployment ID : "
+        f"{saved_deployment['id']}"
+    )
+    print(
+        f"Risk Score    : "
+        f"{saved_deployment['riskScore']}"
+    )
+    print(
+        f"Risk Level    : "
+        f"{saved_deployment['riskLevel']}"
+    )
+    print(
+        f"Decision      : "
+        f"{saved_deployment['decision']}"
+    )
+    print(
+        f"Status        : "
+        f"{saved_deployment['status']}"
+    )
+    print()
+    print("Deployment saved successfully.")
 
 
 if __name__ == "__main__":
