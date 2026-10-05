@@ -21,7 +21,7 @@ def test_home_page():
     response = client.get("/")
 
     assert response.status_code == 200
-    assert b"DeployGuard Nexus Application is Running" in response.data
+    assert b"DeployGuard Nexus" in response.data
 
 
 def test_health_status_code():

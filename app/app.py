@@ -2,17 +2,22 @@ import os
 import sys
 from pathlib import Path
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 
 
-# Allow Python to find the backend package
-sys.path.insert(
-    0,
-    str(
-        Path(__file__).resolve().parent.parent / "backend"
-    )
-)
+# =========================================================
+# PATHS
+# =========================================================
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DASHBOARD_DIR = PROJECT_ROOT / "dashboard"
+BACKEND_DIR = PROJECT_ROOT / "backend"
+
+
+# Allow Python to find backend modules
+sys.path.insert(0, str(BACKEND_DIR))
+
 
 from deployment_store import (
     get_deployments,
@@ -22,31 +27,87 @@ from deployment_store import (
 )
 
 
+# =========================================================
+# FLASK APPLICATION
+# =========================================================
+
 app = Flask(__name__)
 
 
-# Allow the local dashboard to access the API
-CORS(
-    app,
-    resources={
-        r"/api/*": {
-            "origins": "http://localhost:8000"
-        }
-    }
-)
+# Allow dashboard/API communication
+CORS(app)
 
+
+# =========================================================
+# DASHBOARD
+# =========================================================
 
 @app.route("/")
 def home():
-    return "DeployGuard Nexus Application is Running"
+    """
+    Serve the DeployGuard Nexus dashboard.
+    """
 
+    return send_from_directory(
+        DASHBOARD_DIR,
+        "index.html"
+    )
+
+
+@app.route("/style.css")
+def dashboard_css():
+    """
+    Serve dashboard CSS.
+    """
+
+    return send_from_directory(
+        DASHBOARD_DIR,
+        "style.css"
+    )
+
+
+@app.route("/script.js")
+def dashboard_js():
+    """
+    Serve dashboard JavaScript.
+    """
+
+    return send_from_directory(
+        DASHBOARD_DIR,
+        "script.js"
+    )
+
+
+@app.route("/deployments.json")
+def dashboard_data():
+    """
+    Serve dashboard deployment data.
+    """
+
+    return send_from_directory(
+        DASHBOARD_DIR,
+        "deployments.json"
+    )
+
+
+# =========================================================
+# HEALTH CHECK
+# =========================================================
 
 @app.route("/health")
 def health():
+    """
+    Health check endpoint.
+    """
+
     return jsonify({
         "status": "healthy"
     })
 
+
+# =========================================================
+# DEPLOYMENTS API
+# =========================================================
 
 @app.route("/api/deployments", methods=["GET"])
 def deployments():
@@ -59,6 +120,10 @@ def deployments():
         "deployments": get_deployments()
     })
 
+
+# =========================================================
+# SINGLE DEPLOYMENT
+# =========================================================
 
 @app.route(
     "/api/deployments/<deployment_id>",
@@ -74,12 +139,19 @@ def deployment_details(deployment_id):
     )
 
     if deployment is None:
+
         return jsonify({
             "error": "Deployment not found"
         }), 404
 
-    return jsonify(deployment)
+    return jsonify(
+        deployment
+    )
 
+
+# =========================================================
+# SUMMARY API
+# =========================================================
 
 @app.route("/api/summary", methods=["GET"])
 def summary():
@@ -92,7 +164,14 @@ def summary():
     )
 
 
-@app.route("/api/deployments", methods=["POST"])
+# =========================================================
+# CREATE DEPLOYMENT
+# =========================================================
+
+@app.route(
+    "/api/deployments",
+    methods=["POST"]
+)
 def create_deployment():
     """
     Save a new deployment record.
@@ -103,9 +182,11 @@ def create_deployment():
     )
 
     if not data:
+
         return jsonify({
             "error": "JSON request body is required"
         }), 400
+
 
     required_fields = [
         "id",
@@ -115,27 +196,36 @@ def create_deployment():
         "status"
     ]
 
+
     missing_fields = [
         field
         for field in required_fields
         if field not in data
     ]
 
+
     if missing_fields:
+
         return jsonify({
             "error": "Missing required fields",
             "fields": missing_fields
         }), 400
 
+
     deployment = save_deployment(
         data
     )
+
 
     return jsonify({
         "message": "Deployment saved successfully",
         "deployment": deployment
     }), 201
 
+
+# =========================================================
+# APPLICATION START
+# =========================================================
 
 if __name__ == "__main__":
 
@@ -153,5 +243,6 @@ if __name__ == "__main__":
 
     app.run(
         host=host,
-        port=port
+        port=port,
+        debug=False
     )

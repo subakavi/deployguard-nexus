@@ -12,100 +12,657 @@
 
 <body>
 
-    <!-- Header -->
-    <header>
-        <h1>DeployGuard Nexus</h1>
-        <p>Deployment Risk Intelligence Dashboard</p>
+    <!-- ================= HEADER ================= -->
+
+    <header class="topbar">
+
+        <div>
+            <h1>🛡️ DeployGuard Nexus</h1>
+
+            <p>
+                Intelligent Cloud Deployment Risk & Self-Healing Platform
+            </p>
+        </div>
+
+        <div class="system-status">
+            <span class="status-dot"></span>
+            System Online
+        </div>
+
     </header>
 
 
-    <!-- Main Content -->
     <main>
 
-        <!-- Summary Cards -->
+        <!-- ================= OVERVIEW ================= -->
+
+        <section class="section-heading">
+
+            <div>
+                <h2>Deployment Overview</h2>
+
+                <p>
+                    Real-time deployment risk intelligence
+                </p>
+            </div>
+
+            <button
+                onclick="loadDashboard()"
+                class="refresh-btn">
+
+                ↻ Refresh
+
+            </button>
+
+        </section>
+
+
+        <!-- ================= SUMMARY ================= -->
+
         <section class="summary">
 
-            <div class="card">
-                <h3>Risk Score</h3>
-                <p id="riskScore">--</p>
+            <div class="card risk-card">
+
+                <div class="card-icon">⚡</div>
+
+                <div>
+                    <h3>Risk Score</h3>
+
+                    <p id="riskScore">--</p>
+
+                    <span>Deployment risk</span>
+                </div>
+
             </div>
 
-            <div class="card">
-                <h3>Risk Level</h3>
-                <p id="riskLevel">--</p>
-            </div>
 
             <div class="card">
-                <h3>Decision</h3>
-                <p id="decision">--</p>
+
+                <div class="card-icon">🛡️</div>
+
+                <div>
+                    <h3>Risk Level</h3>
+
+                    <p id="riskLevel">--</p>
+
+                    <span>Current assessment</span>
+                </div>
+
+            </div>
+
+
+            <div class="card">
+
+                <div class="card-icon">🚦</div>
+
+                <div>
+                    <h3>Decision</h3>
+
+                    <p id="decision">--</p>
+
+                    <span>Deployment gate</span>
+                </div>
+
+            </div>
+
+
+            <div class="card">
+
+                <div class="card-icon">☁️</div>
+
+                <div>
+                    <h3>Platform</h3>
+
+                    <p>Cloud</p>
+
+                    <span>Render deployment</span>
+                </div>
+
             </div>
 
         </section>
 
 
-        <!-- Latest Deployment -->
+        <!-- ================= LATEST DEPLOYMENT ================= -->
+
         <section class="panel">
 
-            <h2>Latest Deployment</h2>
+            <div class="panel-header">
 
-            <table>
+                <div>
 
-                <thead>
-                    <tr>
-                        <th>Deployment ID</th>
-                        <th>Risk Score</th>
-                        <th>Risk Level</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
+                    <h2>Latest Deployment</h2>
 
-                <tbody id="latestDeploymentTable">
-                </tbody>
+                    <p>
+                        Most recent deployment analyzed by DeployGuard
+                    </p>
 
-            </table>
+                </div>
+
+                <span
+                    id="latestStatus"
+                    class="badge">
+
+                    --
+
+                </span>
+
+            </div>
+
+
+            <div class="latest-grid">
+
+                <div class="metric">
+
+                    <span>Deployment ID</span>
+
+                    <strong id="latestId">--</strong>
+
+                </div>
+
+
+                <div class="metric">
+
+                    <span>Risk Score</span>
+
+                    <strong id="latestRisk">--</strong>
+
+                </div>
+
+
+                <div class="metric">
+
+                    <span>Risk Level</span>
+
+                    <strong id="latestLevel">--</strong>
+
+                </div>
+
+
+                <div class="metric">
+
+                    <span>Decision</span>
+
+                    <strong id="latestDecision">--</strong>
+
+                </div>
+
+            </div>
 
         </section>
 
 
-        <!-- Deployment History -->
+        <!-- ================= RISK ANALYSIS ================= -->
+
         <section class="panel">
 
-            <h2>Deployment History</h2>
+            <div class="panel-header">
 
-            <table>
+                <div>
 
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Risk</th>
-                        <th>Decision</th>
-                        <th>Status</th>
-                        <th>Rollback</th>
-                    </tr>
-                </thead>
+                    <h2>Risk Analysis</h2>
 
-                <tbody id="deploymentTable">
-                </tbody>
+                    <p>
+                        Security and quality signals used by the risk engine
+                    </p>
 
-            </table>
+                </div>
+
+            </div>
+
+
+            <div class="analysis-grid">
+
+                <div class="analysis-item">
+
+                    <span>🧪 Test Failures</span>
+
+                    <strong id="testFailures">--</strong>
+
+                </div>
+
+
+                <div class="analysis-item">
+
+                    <span>📊 Code Coverage</span>
+
+                    <strong id="coverage">--</strong>
+
+                </div>
+
+
+                <div class="analysis-item">
+
+                    <span>🔄 Changed Files</span>
+
+                    <strong id="changedFiles">--</strong>
+
+                </div>
+
+
+                <div class="analysis-item">
+
+                    <span>⚠️ Previous Failures</span>
+
+                    <strong id="previousFailures">--</strong>
+
+                </div>
+
+
+                <div class="analysis-item">
+
+                    <span>🔐 Security Issues</span>
+
+                    <strong id="securityIssues">--</strong>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================= DEPLOYMENT HISTORY ================= -->
+
+        <section class="panel">
+
+            <div class="panel-header">
+
+                <div>
+
+                    <h2>Deployment History</h2>
+
+                    <p>
+                        Previous deployment decisions and recovery events
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="table-container">
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+
+                            <th>Deployment ID</th>
+
+                            <th>Risk Score</th>
+
+                            <th>Risk Level</th>
+
+                            <th>Decision</th>
+
+                            <th>Status</th>
+
+                            <th>Rollback</th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody id="deploymentTable">
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================= PIPELINE ================= -->
+
+        <section class="panel pipeline-panel">
+
+            <div class="panel-header">
+
+                <div>
+
+                    <h2>Deployment Pipeline</h2>
+
+                    <p>
+                        DeployGuard Nexus workflow
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="pipeline">
+
+                <div class="pipeline-step">
+
+                    <div class="pipeline-icon">
+                        📦
+                    </div>
+
+                    <span>
+                        Code Push
+                    </span>
+
+                </div>
+
+
+                <div class="pipeline-line"></div>
+
+
+                <div class="pipeline-step">
+
+                    <div class="pipeline-icon">
+                        🧪
+                    </div>
+
+                    <span>
+                        Testing
+                    </span>
+
+                </div>
+
+
+                <div class="pipeline-line"></div>
+
+
+                <div class="pipeline-step">
+
+                    <div class="pipeline-icon">
+                        🛡️
+                    </div>
+
+                    <span>
+                        Risk Gate
+                    </span>
+
+                </div>
+
+
+                <div class="pipeline-line"></div>
+
+
+                <div class="pipeline-step">
+
+                    <div class="pipeline-icon">
+                        🚀
+                    </div>
+
+                    <span>
+                        Deployment
+                    </span>
+
+                </div>
+
+
+                <div class="pipeline-line"></div>
+
+
+                <div class="pipeline-step">
+
+                    <div class="pipeline-icon">
+                        ♻️
+                    </div>
+
+                    <span>
+                        Self-Healing
+                    </span>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ================= DEMO DEPLOYMENT ================= -->
+
+        <section class="panel deploy-panel">
+
+            <div class="panel-header">
+
+                <div>
+
+                    <h2>
+                        🚀 Deploy Your Project
+                    </h2>
+
+                    <p>
+                        Analyze your project before allowing it into production.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <!-- Deployment Form -->
+
+            <div
+                id="deploymentForm"
+                class="deployment-form">
+
+
+                <div class="form-group">
+
+                    <label for="projectName">
+                        Project Name
+                    </label>
+
+                    <input
+                        type="text"
+                        id="projectName"
+                        placeholder="Example: Student Management System"
+                        value="Demo Project">
+
+                </div>
+
+
+                <div class="form-grid">
+
+                    <div class="form-group">
+
+                        <label for="inputTests">
+                            Test Failures
+                        </label>
+
+                        <input
+                            type="number"
+                            id="inputTests"
+                            min="0"
+                            value="0">
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="inputCoverage">
+                            Code Coverage (%)
+                        </label>
+
+                        <input
+                            type="number"
+                            id="inputCoverage"
+                            min="0"
+                            max="100"
+                            value="85">
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="inputSecurity">
+                            Security Issues
+                        </label>
+
+                        <input
+                            type="number"
+                            id="inputSecurity"
+                            min="0"
+                            value="0">
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="inputChanged">
+                            Changed Files
+                        </label>
+
+                        <input
+                            type="number"
+                            id="inputChanged"
+                            min="0"
+                            value="3">
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="inputPrevious">
+                            Previous Failures
+                        </label>
+
+                        <input
+                            type="number"
+                            id="inputPrevious"
+                            min="0"
+                            value="0">
+
+                    </div>
+
+                </div>
+
+
+                <button
+                    class="deploy-btn"
+                    onclick="analyzeDeployment()">
+
+                    🔍 Analyze & Deploy
+
+                </button>
+
+            </div>
+
+
+            <!-- Deployment Result -->
+
+            <div
+                id="deploymentResult"
+                class="deployment-result">
+
+                <div class="result-header">
+
+                    <h3>
+                        Deployment Analysis
+                    </h3>
+
+                    <span
+                        id="resultBadge"
+                        class="result-badge">
+
+                        --
+
+                    </span>
+
+                </div>
+
+
+                <div class="result-grid">
+
+                    <div>
+
+                        <span>Project</span>
+
+                        <strong id="resultProject">
+                            --
+                        </strong>
+
+                    </div>
+
+
+                    <div>
+
+                        <span>Risk Score</span>
+
+                        <strong id="resultScore">
+                            --
+                        </strong>
+
+                    </div>
+
+
+                    <div>
+
+                        <span>Risk Level</span>
+
+                        <strong id="resultLevel">
+                            --
+                        </strong>
+
+                    </div>
+
+
+                    <div>
+
+                        <span>Decision</span>
+
+                        <strong id="resultDecision">
+                            --
+                        </strong>
+
+                    </div>
+
+                </div>
+
+
+                <div
+                    id="resultMessage"
+                    class="result-message">
+
+                </div>
+
+            </div>
 
         </section>
 
     </main>
 
 
-    <!-- Footer -->
+    <!-- ================= FOOTER ================= -->
+
     <footer>
 
         <p>
-            DeployGuard Nexus |
-            Self-Healing Cloud Deployment Platform
+
+            <strong>
+                DeployGuard Nexus
+            </strong>
+
+            |
+
+            Intelligent Cloud Deployment Risk & Self-Healing Platform
+
+        </p>
+
+
+        <p>
+
+            CI/CD • Risk Intelligence • Security • Automated Recovery
+
         </p>
 
     </footer>
 
 
-    <!-- JavaScript -->
     <script src="script.js"></script>
 
 </body>
