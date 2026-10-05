@@ -7,10 +7,19 @@ RISK_RESULT_FILE = "risk-result.json"
 
 def main():
     try:
-        with open(RISK_RESULT_FILE, "r", encoding="utf-8") as file:
+        with open(
+            RISK_RESULT_FILE,
+            "r",
+            encoding="utf-8"
+        ) as file:
             data = json.load(file)
+
     except FileNotFoundError:
-        print("ERROR: risk-result.json was not found.")
+
+        print(
+            "ERROR: risk-result.json was not found."
+        )
+
         sys.exit(1)
 
     result = data["result"]
@@ -24,30 +33,85 @@ def main():
     print("         DEPLOYMENT GATE")
     print("========================================")
     print()
-    print(f"Risk Score           : {risk_score}")
-    print(f"Risk Level           : {risk_level}")
-    print(f"Deployment Decision  : {decision}")
+
+    print(
+        f"Risk Score           : {risk_score}"
+    )
+
+    print(
+        f"Risk Level           : {risk_level}"
+    )
+
+    print(
+        f"Deployment Decision  : {decision}"
+    )
+
     print()
 
+    # ========================================
+    # APPROVED
+    # ========================================
+
     if decision == "APPROVED":
-        print("✅ Deployment Gate: ALLOWED")
-        print("Deployment may continue.")
+
+        print(
+            "Deployment Gate: ALLOWED"
+        )
+
+        print(
+            "Deployment may continue."
+        )
+
         sys.exit(0)
+
+    # ========================================
+    # VALIDATION REQUIRED
+    # ========================================
 
     elif decision == "VALIDATION_REQUIRED":
-        print("⚠️ Deployment Gate: VALIDATION REQUIRED")
-        print("Additional validation is required.")
-        print("For the current project phase, deployment may continue.")
+
+        print(
+            "Deployment Gate: VALIDATION REQUIRED"
+        )
+
+        print(
+            "Additional validation is required."
+        )
+
+        print(
+            "For the current project phase, "
+            "deployment may continue."
+        )
+
         sys.exit(0)
 
+    # ========================================
+    # BLOCKED
+    # ========================================
+
     elif decision == "BLOCKED":
-        print("❌ Deployment Gate: BLOCKED")
-        print("High-risk deployment detected.")
-        print("Deployment must not continue.")
+
+        print(
+            "Deployment Gate: BLOCKED"
+        )
+
+        print(
+            "Deployment has been stopped "
+            "because the risk level is too high."
+        )
+
         sys.exit(1)
 
+    # ========================================
+    # UNKNOWN DECISION
+    # ========================================
+
     else:
-        print("ERROR: Unknown deployment decision.")
+
+        print(
+            "ERROR: Unknown deployment decision."
+        )
+
         sys.exit(1)
 
 
