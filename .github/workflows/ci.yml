@@ -9,10 +9,8 @@ on:
     branches:
       - main
 
-
 permissions:
   contents: read
-
 
 jobs:
   ci:
@@ -21,29 +19,26 @@ jobs:
 
     steps:
 
-      # 1. Get the repository code
+      # 1. Checkout repository
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-
-      # 2. Install Python 3.12
+      # 2. Setup Python
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-
-      # 3. Install project dependencies and security scanner
+      # 3. Install dependencies
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r app/requirements.txt
           pip install bandit
 
-
-      # 4. Run all tests and generate test/coverage reports
+      # 4. Run tests and generate coverage
       - name: Run Tests and Generate Reports
         run: |
           python -m pytest \
@@ -52,10 +47,7 @@ jobs:
             --cov-report=json:coverage.json \
             --junitxml=test-results.xml
 
-
-      # 5. Run Bandit security scan
-      # --exit-zero allows the Risk Engine to inspect findings
-      # instead of Bandit immediately stopping the pipeline.
+      # 5. Security scan
       - name: Run Security Scan
         run: |
           python -m bandit \
@@ -64,18 +56,15 @@ jobs:
             -o bandit-report.json \
             --exit-zero
 
-
-      # 6. Calculate deployment risk using real CI metrics
+      # 6. Calculate deployment risk
       - name: Run Deployment Risk Analysis
         run: |
           python risk-engine/ci_metrics.py
 
-
-      # 7. Enforce the deployment decision
+      # 7. Deployment gate
       - name: Run Deployment Gate
         run: |
           python risk-engine/deployment_gate.py
-
 
       # 8. Generate dashboard data
       - name: Generate Dashboard Data
@@ -85,14 +74,52 @@ jobs:
         run: |
           python risk-engine/generate_dashboard_data.py
 
-
-      # 9. Display the risk result in GitHub Actions
+      # 9. Display risk result
       - name: Display Risk Result
         run: |
           cat risk-result.json
 
+      # 10. Create stable deployment history
+      - name: Create Stable Deployment History
+        run: |
+          python -c "from backend.deployment_store import save_deployment; save_deployment({'id':'STABLE-001','commitId':'stable-001','riskScore':10,'riskLevel':'SAFE','decision':'APPROVED','status':'SUCCESS','rollback':False})"
 
-      # 10. Create AWS CodeDeploy package
+          python -c "from backend.deployment_store import save_deployment; save_deployment({'id':'STABLE-002','commitId':'stable-002','riskScore':15,'riskLevel':'SAFE','decision':'APPROVED','status':'SUCCESS','rollback':False})"
+
+          echo "Stable deployment history created."
+
+      # 11. Create failed deployment
+      - name: Create Failed Deployment
+        run: |
+          python -c "from backend.deployment_store import save_deployment; save_deployment({'id':'TEST-FAILED-001','commitId':'failed-001','riskScore':80,'riskLevel':'HIGH','decision':'BLOCKED','status':'FAILED','rollback':False})"
+
+          echo "Failed deployment created."
+
+      # 12. Simulate application failure
+      - name: Simulate Application Failure
+        run: |
+          echo "========================================"
+          echo "SIMULATING APPLICATION FAILURE"
+          echo "========================================"
+          echo "Application health check failed."
+          echo "Recovery process will begin."
+
+      # 13. Run self-healing rollback
+      - name: Run Self-Healing Rollback
+        env:
+          CURRENT_DEPLOYMENT_ID: "TEST-FAILED-001"
+        run: |
+          python backend/recovery_manager.py
+
+      # 14. Display recovery result
+      - name: Display Recovery Result
+        run: |
+          echo "========================================"
+          echo "SELF-HEALING RECOVERY RESULT"
+          echo "========================================"
+          cat dashboard/deployments.json
+
+      # 15. Create AWS CodeDeploy package
       - name: Create Deployment Package
         run: |
           zip -r deployguard-nexus.zip \
@@ -100,8 +127,7 @@ jobs:
             app/ \
             deployment/
 
-
-      # 11. Upload CodeDeploy package
+      # 16. Upload CodeDeploy artifact
       - name: Upload Deployment Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -109,8 +135,7 @@ jobs:
           path: deployguard-nexus.zip
           retention-days: 5
 
-
-      # 12. Upload dashboard
+      # 17. Upload dashboard artifact
       - name: Upload Dashboard Artifact
         uses: actions/upload-artifact@v4
         with:
