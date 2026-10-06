@@ -1,3 +1,12 @@
+// =========================================================
+// DEPLOYGUARD NEXUS DASHBOARD
+// =========================================================
+
+
+// =========================================================
+// LOAD DASHBOARD
+// =========================================================
+
 async function loadDashboard() {
 
     try {
@@ -6,30 +15,39 @@ async function loadDashboard() {
             "/api/deployments"
         );
 
+
         if (!response.ok) {
+
             throw new Error(
                 "Unable to load deployment data."
             );
+
         }
 
-        const data = await response.json();
+
+        const data =
+            await response.json();
+
 
         // =================================================
-        // SUMMARY CARDS
+        // SUMMARY
         // =================================================
 
         const summary =
             data.summary || {};
+
 
         document.getElementById(
             "riskScore"
         ).textContent =
             summary.riskScore ?? "--";
 
+
         document.getElementById(
             "riskLevel"
         ).textContent =
             summary.riskLevel || "--";
+
 
         document.getElementById(
             "decision"
@@ -38,11 +56,18 @@ async function loadDashboard() {
 
 
         // =================================================
-        // DEPLOYMENT LIST
+        // DEPLOYMENTS
         // =================================================
 
         const deployments =
-            data.deployments || [];
+            Array.isArray(data.deployments)
+                ? data.deployments
+                : [];
+
+
+        // =================================================
+        // LATEST DEPLOYMENT
+        // =================================================
 
         const latest =
             deployments.length > 0
@@ -51,7 +76,24 @@ async function loadDashboard() {
 
 
         // =================================================
-        // LATEST DEPLOYMENT
+        // FIND LATEST DEPLOYMENT WITH RISK ANALYSIS
+        // =================================================
+
+        const analysisDeployment =
+            deployments.find(
+                deployment =>
+                    deployment.testFailures !== undefined ||
+                    deployment.coverage !== undefined ||
+                    deployment.changedFiles !== undefined ||
+                    deployment.securityIssues !== undefined ||
+                    deployment.testsPassed !== undefined ||
+                    deployment.previousFailures !== undefined ||
+                    deployment.metrics !== undefined
+            ) || latest;
+
+
+        // =================================================
+        // LATEST DEPLOYMENT DISPLAY
         // =================================================
 
         if (latest) {
@@ -61,82 +103,186 @@ async function loadDashboard() {
             ).textContent =
                 latest.id || "--";
 
+
             document.getElementById(
                 "latestRisk"
             ).textContent =
                 latest.riskScore ?? "--";
+
 
             document.getElementById(
                 "latestLevel"
             ).textContent =
                 latest.riskLevel || "--";
 
+
             document.getElementById(
                 "latestDecision"
             ).textContent =
                 latest.decision || "--";
+
 
             document.getElementById(
                 "latestStatus"
             ).textContent =
                 latest.status || "--";
 
+        }
+
+
+        // =================================================
+        // RISK ANALYSIS
+        // =================================================
+
+        if (analysisDeployment) {
+
+            /*
+             * Some older deployments store metrics directly:
+             *
+             * testFailures
+             * coverage
+             * changedFiles
+             * securityIssues
+             * testsPassed
+             * previousFailures
+             *
+             * Some deployments may store them inside:
+             *
+             * metrics: {
+             *     testFailures: ...,
+             *     coverage: ...,
+             *     changedFiles: ...,
+             *     securityIssues: ...,
+             *     testsPassed: ...,
+             *     previousFailures: ...
+             * }
+             */
+
+
+            const metrics =
+                analysisDeployment.metrics || {};
+
+
+            const testFailures =
+                analysisDeployment.testFailures ??
+                metrics.testFailures;
+
+
+            const coverage =
+                analysisDeployment.coverage ??
+                metrics.coverage;
+
+
+            const changedFiles =
+                analysisDeployment.changedFiles ??
+                metrics.changedFiles;
+
+
+            const previousFailures =
+                analysisDeployment.previousFailures ??
+                metrics.previousFailures;
+
+
+            const securityIssues =
+                analysisDeployment.securityIssues ??
+                metrics.securityIssues;
+
+
+            const testsPassed =
+                analysisDeployment.testsPassed ??
+                metrics.testsPassed;
+
 
             // =================================================
-            // RISK ANALYSIS
+            // TEST FAILURES
             // =================================================
 
             document.getElementById(
                 "testFailures"
             ).textContent =
-                latest.testFailures ?? "--";
+                testFailures ?? "--";
+
+
+            // =================================================
+            // COVERAGE
+            // =================================================
 
             document.getElementById(
                 "coverage"
             ).textContent =
-                latest.coverage !== undefined
-                    ? `${latest.coverage}%`
+                coverage !== undefined &&
+                coverage !== null
+                    ? `${Number(coverage).toFixed(1)}%`
                     : "--";
+
+
+            // =================================================
+            // CHANGED FILES
+            // =================================================
 
             document.getElementById(
                 "changedFiles"
             ).textContent =
-                latest.changedFiles ?? "--";
+                changedFiles ?? "--";
+
+
+            // =================================================
+            // PREVIOUS FAILURES
+            // =================================================
 
             document.getElementById(
                 "previousFailures"
             ).textContent =
-                latest.previousFailures ?? "--";
+                previousFailures ?? "--";
+
+
+            // =================================================
+            // SECURITY ISSUES
+            // =================================================
 
             document.getElementById(
                 "securityIssues"
             ).textContent =
-                latest.securityIssues ?? "--";
+                securityIssues ?? "--";
+
+
+            // =================================================
+            // TESTS PASSED
+            // =================================================
 
             document.getElementById(
                 "testsPassed"
             ).textContent =
-                latest.testsPassed ?? "--";
+                testsPassed ?? "--";
 
-        } else {
+        }
 
-            // No deployments yet
+
+        // =================================================
+        // NO DEPLOYMENTS
+        // =================================================
+
+        else {
 
             document.getElementById(
                 "latestId"
             ).textContent = "--";
 
+
             document.getElementById(
                 "latestRisk"
             ).textContent = "--";
+
 
             document.getElementById(
                 "latestLevel"
             ).textContent = "--";
 
+
             document.getElementById(
                 "latestDecision"
             ).textContent = "--";
+
 
             document.getElementById(
                 "latestStatus"
@@ -147,25 +293,31 @@ async function loadDashboard() {
                 "testFailures"
             ).textContent = "--";
 
+
             document.getElementById(
                 "coverage"
             ).textContent = "--";
+
 
             document.getElementById(
                 "changedFiles"
             ).textContent = "--";
 
+
             document.getElementById(
                 "previousFailures"
             ).textContent = "--";
+
 
             document.getElementById(
                 "securityIssues"
             ).textContent = "--";
 
+
             document.getElementById(
                 "testsPassed"
             ).textContent = "--";
+
         }
 
 
@@ -178,11 +330,13 @@ async function loadDashboard() {
                 "deploymentTable"
             );
 
+
         table.innerHTML = "";
 
 
         deployments.forEach(
-            (deployment) => {
+            deployment => {
+
 
                 const row =
                     document.createElement(
@@ -191,6 +345,7 @@ async function loadDashboard() {
 
 
                 row.innerHTML = `
+
                     <td>
                         ${deployment.id || "--"}
                     </td>
@@ -218,16 +373,22 @@ async function loadDashboard() {
                                 : "No"
                         }
                     </td>
+
                 `;
 
 
-                table.appendChild(row);
+                table.appendChild(
+                    row
+                );
 
             }
         );
 
 
-    } catch (error) {
+    }
+
+
+    catch (error) {
 
         console.error(
             "Dashboard error:",
@@ -245,12 +406,51 @@ async function loadDashboard() {
             "decision"
         ).textContent =
             "DATA UNAVAILABLE";
+
+
+        document.getElementById(
+            "testFailures"
+        ).textContent =
+            "--";
+
+
+        document.getElementById(
+            "coverage"
+        ).textContent =
+            "--";
+
+
+        document.getElementById(
+            "changedFiles"
+        ).textContent =
+            "--";
+
+
+        document.getElementById(
+            "previousFailures"
+        ).textContent =
+            "--";
+
+
+        document.getElementById(
+            "securityIssues"
+        ).textContent =
+            "--";
+
+
+        document.getElementById(
+            "testsPassed"
+        ).textContent =
+            "--";
+
     }
+
 }
 
 
+
 // =========================================================
-// REAL PROJECT ANALYSIS
+// REAL PROJECT ANALYZER
 // =========================================================
 
 async function analyzeProject() {
@@ -284,17 +484,24 @@ async function analyzeProject() {
     if (!repository) {
 
         resultBox.innerHTML = `
-            <h3>Repository Required</h3>
+
+            <h3>
+                Repository Required
+            </h3>
 
             <p>
                 Please enter a GitHub repository URL.
             </p>
+
         `;
+
 
         resultBox.style.display =
             "block";
 
+
         return;
+
     }
 
 
@@ -303,6 +510,7 @@ async function analyzeProject() {
     // =====================================================
 
     button.disabled = true;
+
 
     button.textContent =
         "Analyzing...";
@@ -313,6 +521,7 @@ async function analyzeProject() {
 
 
     resultBox.innerHTML = `
+
         <h3>
             Analyzing Project...
         </h3>
@@ -324,6 +533,7 @@ async function analyzeProject() {
             calculating coverage
             and scanning for security issues...
         </p>
+
     `;
 
 
@@ -337,17 +547,24 @@ async function analyzeProject() {
             await fetch(
                 "/api/analyze",
                 {
+
                     method: "POST",
 
                     headers: {
+
                         "Content-Type":
                             "application/json"
+
                     },
 
-                    body: JSON.stringify({
-                        repository:
-                            repository
-                    })
+                    body:
+                        JSON.stringify({
+
+                            repository:
+                                repository
+
+                        })
+
                 }
             );
 
@@ -366,14 +583,17 @@ async function analyzeProject() {
         ) {
 
             throw new Error(
+
                 result.error ||
                 "Project analysis failed."
+
             );
+
         }
 
 
         // =================================================
-        // DISPLAY COMPLETE ANALYSIS
+        // DISPLAY ANALYSIS
         // =================================================
 
         resultBox.innerHTML = `
@@ -384,8 +604,13 @@ async function analyzeProject() {
 
 
             <p>
-                <strong>Project:</strong>
+
+                <strong>
+                    Project:
+                </strong>
+
                 ${result.repository}
+
             </p>
 
 
@@ -393,6 +618,7 @@ async function analyzeProject() {
 
 
                 <div>
+
                     <span>
                         Tests Passed
                     </span>
@@ -400,10 +626,12 @@ async function analyzeProject() {
                     <strong>
                         ${result.tests_passed}
                     </strong>
+
                 </div>
 
 
                 <div>
+
                     <span>
                         Test Failures
                     </span>
@@ -411,10 +639,12 @@ async function analyzeProject() {
                     <strong>
                         ${result.test_failures}
                     </strong>
+
                 </div>
 
 
                 <div>
+
                     <span>
                         Code Coverage
                     </span>
@@ -422,10 +652,12 @@ async function analyzeProject() {
                     <strong>
                         ${result.coverage}%
                     </strong>
+
                 </div>
 
 
                 <div>
+
                     <span>
                         Security Issues
                     </span>
@@ -433,10 +665,12 @@ async function analyzeProject() {
                     <strong>
                         ${result.security_issues}
                     </strong>
+
                 </div>
 
 
                 <div>
+
                     <span>
                         Changed Files
                     </span>
@@ -444,10 +678,12 @@ async function analyzeProject() {
                     <strong>
                         ${result.changed_files}
                     </strong>
+
                 </div>
 
 
                 <div>
+
                     <span>
                         Previous Failures
                     </span>
@@ -455,6 +691,7 @@ async function analyzeProject() {
                     <strong>
                         ${result.previous_failures}
                     </strong>
+
                 </div>
 
 
@@ -466,6 +703,7 @@ async function analyzeProject() {
 
             <div class="deployment-decision">
 
+
                 <h3>
                     Deployment Decision
                 </h3>
@@ -475,6 +713,7 @@ async function analyzeProject() {
 
 
                     <div>
+
                         <span>
                             Risk Score
                         </span>
@@ -482,10 +721,12 @@ async function analyzeProject() {
                         <strong>
                             ${result.risk_score}
                         </strong>
+
                     </div>
 
 
                     <div>
+
                         <span>
                             Risk Level
                         </span>
@@ -493,10 +734,12 @@ async function analyzeProject() {
                         <strong>
                             ${result.risk_level}
                         </strong>
+
                     </div>
 
 
                     <div>
+
                         <span>
                             Decision
                         </span>
@@ -504,44 +747,63 @@ async function analyzeProject() {
                         <strong>
                             ${result.decision}
                         </strong>
+
                     </div>
 
 
                 </div>
 
+
             </div>
 
 
             <p>
+
                 Analysis ID:
+
                 <strong>
                     ${result.deployment_id}
                 </strong>
+
             </p>
 
 
             <p>
+
                 <strong>
+
                     ${
                         result.decision ===
                         "APPROVED"
 
-                        ? "Deployment approved. Risk level is within the safe threshold."
+                            ? "Deployment approved. Risk level is within the safe threshold."
 
-                        : result.decision ===
-                          "VALIDATION_REQUIRED"
+                            : result.decision ===
+                              "VALIDATION_REQUIRED"
 
-                        ? "Deployment requires additional validation before release."
+                            ? "Deployment requires additional validation before release."
 
-                        : "Deployment blocked because the calculated risk is too high."
+                            : "Deployment blocked because the calculated risk is too high."
                     }
+
                 </strong>
+
             </p>
 
         `;
 
 
-    } catch (error) {
+        // =================================================
+        // REFRESH DASHBOARD
+        // =================================================
+
+        await loadDashboard();
+
+
+    }
+
+
+    catch (error) {
 
         console.error(
             "Analysis error:",
@@ -561,19 +823,25 @@ async function analyzeProject() {
 
         `;
 
+    }
 
-    } finally {
+
+    finally {
 
         button.disabled = false;
 
+
         button.textContent =
             "Analyze Project";
+
     }
+
 }
 
 
+
 // =========================================================
-// LOAD DASHBOARD
+// INITIAL DASHBOARD LOAD
 // =========================================================
 
 loadDashboard();
