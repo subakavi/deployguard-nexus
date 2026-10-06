@@ -12,36 +12,47 @@ async function loadDashboard() {
             );
         }
 
-        const data =
-            await response.json();
-
+        const data = await response.json();
 
         // =================================================
         // SUMMARY CARDS
         // =================================================
 
+        const summary =
+            data.summary || {};
+
         document.getElementById(
             "riskScore"
         ).textContent =
-            data.summary.riskScore;
+            summary.riskScore ?? "--";
 
         document.getElementById(
             "riskLevel"
         ).textContent =
-            data.summary.riskLevel;
+            summary.riskLevel || "--";
 
         document.getElementById(
             "decision"
         ).textContent =
-            data.summary.decision;
+            summary.decision || "--";
+
+
+        // =================================================
+        // DEPLOYMENT LIST
+        // =================================================
+
+        const deployments =
+            data.deployments || [];
+
+        const latest =
+            deployments.length > 0
+                ? deployments[0]
+                : null;
 
 
         // =================================================
         // LATEST DEPLOYMENT
         // =================================================
-
-        const latest =
-            data.deployments[0];
 
         if (latest) {
 
@@ -69,6 +80,92 @@ async function loadDashboard() {
                 "latestStatus"
             ).textContent =
                 latest.status || "--";
+
+
+            // =================================================
+            // RISK ANALYSIS
+            // =================================================
+
+            document.getElementById(
+                "testFailures"
+            ).textContent =
+                latest.testFailures ?? "--";
+
+            document.getElementById(
+                "coverage"
+            ).textContent =
+                latest.coverage !== undefined
+                    ? `${latest.coverage}%`
+                    : "--";
+
+            document.getElementById(
+                "changedFiles"
+            ).textContent =
+                latest.changedFiles ?? "--";
+
+            document.getElementById(
+                "previousFailures"
+            ).textContent =
+                latest.previousFailures ?? "--";
+
+            document.getElementById(
+                "securityIssues"
+            ).textContent =
+                latest.securityIssues ?? "--";
+
+            document.getElementById(
+                "testsPassed"
+            ).textContent =
+                latest.testsPassed ?? "--";
+
+        } else {
+
+            // No deployments yet
+
+            document.getElementById(
+                "latestId"
+            ).textContent = "--";
+
+            document.getElementById(
+                "latestRisk"
+            ).textContent = "--";
+
+            document.getElementById(
+                "latestLevel"
+            ).textContent = "--";
+
+            document.getElementById(
+                "latestDecision"
+            ).textContent = "--";
+
+            document.getElementById(
+                "latestStatus"
+            ).textContent = "--";
+
+
+            document.getElementById(
+                "testFailures"
+            ).textContent = "--";
+
+            document.getElementById(
+                "coverage"
+            ).textContent = "--";
+
+            document.getElementById(
+                "changedFiles"
+            ).textContent = "--";
+
+            document.getElementById(
+                "previousFailures"
+            ).textContent = "--";
+
+            document.getElementById(
+                "securityIssues"
+            ).textContent = "--";
+
+            document.getElementById(
+                "testsPassed"
+            ).textContent = "--";
         }
 
 
@@ -84,7 +181,7 @@ async function loadDashboard() {
         table.innerHTML = "";
 
 
-        data.deployments.forEach(
+        deployments.forEach(
             (deployment) => {
 
                 const row =
@@ -94,11 +191,26 @@ async function loadDashboard() {
 
 
                 row.innerHTML = `
-                    <td>${deployment.id}</td>
-                    <td>${deployment.riskScore}</td>
-                    <td>${deployment.riskLevel}</td>
-                    <td>${deployment.decision}</td>
-                    <td>${deployment.status}</td>
+                    <td>
+                        ${deployment.id || "--"}
+                    </td>
+
+                    <td>
+                        ${deployment.riskScore ?? "--"}
+                    </td>
+
+                    <td>
+                        ${deployment.riskLevel || "--"}
+                    </td>
+
+                    <td>
+                        ${deployment.decision || "--"}
+                    </td>
+
+                    <td>
+                        ${deployment.status || "--"}
+                    </td>
+
                     <td>
                         ${
                             deployment.rollback
@@ -173,6 +285,7 @@ async function analyzeProject() {
 
         resultBox.innerHTML = `
             <h3>Repository Required</h3>
+
             <p>
                 Please enter a GitHub repository URL.
             </p>
@@ -200,7 +313,9 @@ async function analyzeProject() {
 
 
     resultBox.innerHTML = `
-        <h3>Analyzing Project...</h3>
+        <h3>
+            Analyzing Project...
+        </h3>
 
         <p>
             Cloning repository,
