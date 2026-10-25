@@ -2,7 +2,7 @@ import os
 import sys
 from pathlib import Path
 
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, g, jsonify, request, send_from_directory
 from flask_cors import CORS
 
 
@@ -30,6 +30,13 @@ from deployment_store import (
 
 from project_analyzer import analyze_repository
 from risk_engine import calculate_risk
+from auth import (
+    auth_bp,
+    auth_enabled,
+    login_required,
+    page_login_required
+)
+from notification_manager import send_notification
 
 
 # =========================================================
@@ -37,8 +44,105 @@ from risk_engine import calculate_risk
 # =========================================================
 
 app = Flask(__name__)
-
 CORS(app)
+
+# Session cookie used after Cognito login (only active when
+# AUTH_ENABLED=true). The key must be identical for every worker.
+app.secret_key = os.getenv(
+    "FLASK_SECRET_KEY",
+    "dev-only-key-not-for-production"
+)
+
+if auth_enabled() and not os.getenv("FLASK_SECRET_KEY"):
+    raise RuntimeError(
+        "FLASK_SECRET_KEY is required when AUTH_ENABLED=true"
+    )
+
+app.config.update(
+    SESSION_COOKIE_SECURE=auth_enabled(),
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax"
+)
+
+app.register_blueprint(auth_bp)
+
+
+# =========================================================
+# PER-USER HELPERS
+# =========================================================
+
+def _visible(deployments):
+    """With login on, a user only sees their own deployments."""
+
+    if g.user is None:
+        return deployments
+
+    return [
+        item for item in deployments
+        if item.get("ownerId") == g.user["sub"]
+    ]
+
+
+def _summary_for(visible):
+    """Summary of the newest visible deployment."""
+
+    if g.user is None:
+        return get_summary()
+
+    if not visible:
+        return {
+            "riskScore": None,
+            "riskLevel": None,
+            "decision": None
+        }
+
+    latest = visible[0]
+
+    return {
+        "riskScore": latest.get("riskScore"),
+        "riskLevel": latest.get("riskLevel"),
+        "decision": latest.get("decision")
+    }
+
+
+def _send_alert(record):
+    """Email the owner when a deployment is blocked or needs review."""
+
+    try:
+        decision = record.get("decision")
+
+        if decision not in ("BLOCKED", "VALIDATION_REQUIRED"):
+            return
+
+        owner = g.user["email"] if g.user else None
+
+        subject = (
+            f"DeployGuard Nexus: {decision} "
+            f"({record.get('riskScore')}/100)"
+        )
+
+        message = (
+            f"Deployment {record.get('id')} needs attention.\n\n"
+            f"Repository       : {record.get('repository')}\n"
+            f"Risk score       : {record.get('riskScore')}\n"
+            f"Risk level       : {record.get('riskLevel')}\n"
+            f"Decision         : {decision}\n"
+            f"Test failures    : {record.get('testFailures')}\n"
+            f"Coverage         : {record.get('coverage')}%\n"
+            f"Security issues  : {record.get('securityIssues')}\n"
+            f"Changed files    : {record.get('changedFiles')}\n"
+            f"Previous failures: {record.get('previousFailures')}\n"
+        )
+
+        send_notification(
+            subject[:100],
+            message,
+            owner
+        )
+
+    except Exception as error:
+        # An alert problem must never fail the analysis itself.
+        print(f"Alert not sent: {error}")
 
 
 # =========================================================
@@ -46,6 +150,7 @@ CORS(app)
 # =========================================================
 
 @app.route("/")
+@page_login_required
 def home():
 
     return send_from_directory(
@@ -73,6 +178,7 @@ def dashboard_js():
 
 
 @app.route("/deployments.json")
+@login_required
 def dashboard_data():
 
     return send_from_directory(
@@ -101,11 +207,14 @@ def health():
     "/api/deployments",
     methods=["GET"]
 )
+@login_required
 def deployments():
 
+    visible = _visible(get_deployments())
+
     return jsonify({
-        "summary": get_summary(),
-        "deployments": get_deployments()
+        "summary": _summary_for(visible),
+        "deployments": visible
     })
 
 
@@ -117,13 +226,17 @@ def deployments():
     "/api/deployments/<deployment_id>",
     methods=["GET"]
 )
+@login_required
 def deployment_details(deployment_id):
 
     deployment = get_deployment(
         deployment_id
     )
 
-    if deployment is None:
+    if deployment is None or (
+        g.user is not None
+        and deployment.get("ownerId") != g.user["sub"]
+    ):
 
         return jsonify({
             "error": "Deployment not found"
@@ -142,10 +255,13 @@ def deployment_details(deployment_id):
     "/api/summary",
     methods=["GET"]
 )
+@login_required
 def summary():
 
     return jsonify(
-        get_summary()
+        _summary_for(
+            _visible(get_deployments())
+        )
     )
 
 
@@ -157,6 +273,7 @@ def summary():
     "/api/analyze",
     methods=["POST"]
 )
+@login_required
 def analyze_project():
 
     data = request.get_json(
@@ -388,6 +505,10 @@ def analyze_project():
                 False
 
         }
+        if g.user is not None:
+            deployment_record["ownerId"] = g.user["sub"]
+            deployment_record["ownerEmail"] = g.user["email"]
+
 
 
         # -------------------------------------------------
@@ -395,6 +516,10 @@ def analyze_project():
         # -------------------------------------------------
 
         save_deployment(
+            deployment_record
+        )
+
+        _send_alert(
             deployment_record
         )
 
@@ -515,6 +640,7 @@ def analyze_project():
     "/api/deployments",
     methods=["POST"]
 )
+@login_required
 def create_deployment():
 
     data = request.get_json(
@@ -567,6 +693,16 @@ def create_deployment():
 
         }), 400
 
+
+    data = dict(data)
+
+    # Never trust owner fields sent by a client.
+    data.pop("ownerId", None)
+    data.pop("ownerEmail", None)
+
+    if g.user is not None:
+        data["ownerId"] = g.user["sub"]
+        data["ownerEmail"] = g.user["email"]
 
     deployment = save_deployment(
         data

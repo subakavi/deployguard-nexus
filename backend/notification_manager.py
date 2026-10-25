@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import boto3
+from botocore.exceptions import ClientError
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -24,7 +25,8 @@ class LocalNotificationManager:
     def send_notification(
         self,
         subject,
-        message
+        message,
+        owner_email=None
     ):
         timestamp = datetime.now(
             timezone.utc
@@ -35,6 +37,9 @@ class LocalNotificationManager:
             "subject": subject,
             "message": message
         }
+
+        if owner_email:
+            notification["ownerEmail"] = owner_email
 
         LOCAL_NOTIFICATION_FILE.parent.mkdir(
             parents=True,
@@ -66,6 +71,9 @@ class LocalNotificationManager:
         )
 
         return notification
+
+    def subscribe_user(self, email):
+        return None
 
 
 class SNSNotificationManager:
@@ -101,16 +109,52 @@ class SNSNotificationManager:
     def send_notification(
         self,
         subject,
-        message
+        message,
+        owner_email=None
     ):
 
-        response = self.sns.publish(
-            TopicArn=self.topic_arn,
-            Subject=subject,
-            Message=message
-        )
+        arguments = {
+            "TopicArn": self.topic_arn,
+            "Subject": subject,
+            "Message": message
+        }
 
-        return response
+        # Per-user alerts: subscriptions filter on this attribute.
+        if owner_email:
+            arguments["MessageAttributes"] = {
+                "ownerEmail": {
+                    "DataType": "String",
+                    "StringValue": owner_email.lower()
+                }
+            }
+
+        return self.sns.publish(**arguments)
+
+    def subscribe_user(self, email):
+        """
+        Subscribe a user's email to the shared topic with a filter
+        so the user only receives alerts about their own deployments.
+        AWS sends the user a confirmation email the first time.
+        """
+
+        try:
+            response = self.sns.subscribe(
+                TopicArn=self.topic_arn,
+                Protocol="email",
+                Endpoint=email,
+                Attributes={
+                    "FilterPolicy": json.dumps({
+                        "ownerEmail": [email.lower()]
+                    })
+                },
+                ReturnSubscriptionArn=True
+            )
+            return response.get("SubscriptionArn")
+
+        except ClientError as error:
+            # e.g. the address already has a subscription
+            print(f"SNS subscribe skipped: {error}")
+            return None
 
 
 def create_notification_manager():
@@ -142,12 +186,18 @@ notification_manager = (
 
 def send_notification(
     subject,
-    message
+    message,
+    owner_email=None
 ):
     return notification_manager.send_notification(
         subject,
-        message
+        message,
+        owner_email
     )
+
+
+def subscribe_user_email(email):
+    return notification_manager.subscribe_user(email)
 
 
 if __name__ == "__main__":
