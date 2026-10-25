@@ -2,6 +2,7 @@ import json
 import os
 from pathlib import Path
 from datetime import datetime, timezone
+from decimal import Decimal
 
 import boto3
 
@@ -31,6 +32,42 @@ DEFAULT_DATA = {
     },
     "deployments": []
 }
+
+
+# =========================================================
+# DYNAMODB TYPE HELPERS
+# =========================================================
+
+def _to_dynamodb(value):
+    """DynamoDB rejects Python floats, so store them as Decimal."""
+
+    if isinstance(value, float):
+        return Decimal(str(value))
+
+    if isinstance(value, dict):
+        return {k: _to_dynamodb(v) for k, v in value.items()}
+
+    if isinstance(value, (list, tuple)):
+        return [_to_dynamodb(v) for v in value]
+
+    return value
+
+
+def _from_dynamodb(value):
+    """Turn Decimal back into int/float so JSON shows real numbers."""
+
+    if isinstance(value, Decimal):
+        if value == value.to_integral_value():
+            return int(value)
+        return float(value)
+
+    if isinstance(value, dict):
+        return {k: _from_dynamodb(v) for k, v in value.items()}
+
+    if isinstance(value, list):
+        return [_from_dynamodb(v) for v in value]
+
+    return value
 
 
 # =========================================================
@@ -251,18 +288,39 @@ class DynamoDBDeploymentStore:
 
         response = self.table.scan()
 
-        deployments = response.get(
+        items = response.get(
             "Items",
             []
         )
 
+        while "LastEvaluatedKey" in response:
+
+            response = self.table.scan(
+                ExclusiveStartKey=response[
+                    "LastEvaluatedKey"
+                ]
+            )
+
+            items.extend(
+                response.get(
+                    "Items",
+                    []
+                )
+            )
+
+        deployments = [
+            _from_dynamodb(item)
+            for item in items
+        ]
+
         # DynamoDB scan does not guarantee order.
-        # Sort by creation time so newest appears first.
+        # Newest first; older migrated records only have "timestamp".
         deployments.sort(
             key=lambda item:
-                item.get(
-                    "createdAt",
-                    ""
+                str(
+                    item.get("createdAt")
+                    or item.get("timestamp")
+                    or ""
                 ),
             reverse=True
         )
@@ -285,8 +343,10 @@ class DynamoDBDeploymentStore:
             }
         )
 
-        return response.get(
-            "Item"
+        return _from_dynamodb(
+            response.get(
+                "Item"
+            )
         )
 
     # -----------------------------------------------------
@@ -354,7 +414,9 @@ class DynamoDBDeploymentStore:
         )
 
         self.table.put_item(
-            Item=item
+            Item=_to_dynamodb(
+                item
+            )
         )
 
         return deployment
@@ -397,7 +459,9 @@ class DynamoDBDeploymentStore:
 
             expression_values[
                 safe_value
-            ] = value
+            ] = _to_dynamodb(
+                value
+            )
 
         response = self.table.update_item(
 
@@ -424,8 +488,10 @@ class DynamoDBDeploymentStore:
             ReturnValues="ALL_NEW"
         )
 
-        return response.get(
-            "Attributes"
+        return _from_dynamodb(
+            response.get(
+                "Attributes"
+            )
         )
 
 
