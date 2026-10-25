@@ -122,10 +122,19 @@ jobs:
       # 15. Create AWS CodeDeploy package
       - name: Create Deployment Package
         run: |
+          # Make shell scripts Linux-safe (LF line endings, executable)
+          sed -i 's/\r$//' scripts/*.sh deployment/*.sh
+          chmod +x scripts/*.sh deployment/*.sh
           zip -r deployguard-nexus.zip \
             appspec.yml \
             app/ \
-            deployment/
+            backend/ \
+            risk-engine/ \
+            dashboard/ \
+            scripts/ \
+            deployment/ \
+            -x "*__pycache__*" "*.pyc" "*.pytest_cache*" "dashboard/deployments.json"
+          unzip -l deployguard-nexus.zip | tail -n 5
 
       # 16. Upload CodeDeploy artifact
       - name: Upload Deployment Artifact
@@ -142,3 +151,59 @@ jobs:
           name: deployguard-nexus-dashboard
           path: dashboard/
           retention-days: 5
+
+  # ---------------------------------------------------------------
+  # CD: runs only after CI passes and the deployment gate approves,
+  # and only for pushes to main (never for pull requests).
+  # ---------------------------------------------------------------
+  deploy:
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    env:
+      AWS_REGION: ap-southeast-2
+      S3_BUCKET: deployguard-nexus-068889454650
+      CD_APPLICATION: DeployGuardNexus
+      CD_GROUP: DeployGuard-Production
+
+    steps:
+      - name: Download tested package
+        uses: actions/download-artifact@v4
+        with:
+          name: deployguard-nexus-package
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-southeast-2
+
+      - name: Upload package to Amazon S3
+        run: |
+          aws s3 cp deployguard-nexus.zip \
+            "s3://${S3_BUCKET}/releases/${GITHUB_SHA}.zip"
+
+      - name: Start AWS CodeDeploy deployment
+        id: deploy
+        run: |
+          ID=$(aws deploy create-deployment \
+            --application-name "$CD_APPLICATION" \
+            --deployment-group-name "$CD_GROUP" \
+            --s3-location bucket=${S3_BUCKET},key=releases/${GITHUB_SHA}.zip,bundleType=zip \
+            --description "GitHub Actions run ${GITHUB_RUN_ID} commit ${GITHUB_SHA}" \
+            --query deploymentId --output text)
+          echo "id=$ID" >> "$GITHUB_OUTPUT"
+          echo "CodeDeploy deployment: $ID"
+
+      - name: Wait for deployment to succeed
+        run: |
+          aws deploy wait deployment-successful \
+            --deployment-id "${{ steps.deploy.outputs.id }}"
+          aws deploy get-deployment \
+            --deployment-id "${{ steps.deploy.outputs.id }}" \
+            --query 'deploymentInfo.[status,completeTime]' --output text
