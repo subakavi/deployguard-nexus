@@ -1,9 +1,14 @@
 import json
 import os
 from pathlib import Path
+from datetime import datetime, timezone
 
 import boto3
 
+
+# =========================================================
+# PATHS
+# =========================================================
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -13,6 +18,10 @@ LOCAL_DATA_FILE = (
     / "deployments.json"
 )
 
+
+# =========================================================
+# DEFAULT DATA
+# =========================================================
 
 DEFAULT_DATA = {
     "summary": {
@@ -24,31 +33,48 @@ DEFAULT_DATA = {
 }
 
 
+# =========================================================
+# LOCAL JSON STORAGE
+# =========================================================
+
 class LocalDeploymentStore:
     """Deployment storage using local JSON."""
 
     def _load_data(self):
+
         if not LOCAL_DATA_FILE.exists():
+
             return {
-                "summary": DEFAULT_DATA["summary"].copy(),
+                "summary":
+                    DEFAULT_DATA["summary"].copy(),
+
                 "deployments": []
             }
 
         try:
+
             with open(
                 LOCAL_DATA_FILE,
                 "r",
                 encoding="utf-8"
             ) as file:
+
                 return json.load(file)
 
-        except (json.JSONDecodeError, OSError):
+        except (
+            json.JSONDecodeError,
+            OSError
+        ):
+
             return {
-                "summary": DEFAULT_DATA["summary"].copy(),
+                "summary":
+                    DEFAULT_DATA["summary"].copy(),
+
                 "deployments": []
             }
 
     def _save_data(self, data):
+
         LOCAL_DATA_FILE.parent.mkdir(
             parents=True,
             exist_ok=True
@@ -59,6 +85,7 @@ class LocalDeploymentStore:
             "w",
             encoding="utf-8"
         ) as file:
+
             json.dump(
                 data,
                 file,
@@ -66,6 +93,7 @@ class LocalDeploymentStore:
             )
 
     def get_deployments(self):
+
         data = self._load_data()
 
         return data.get(
@@ -74,6 +102,7 @@ class LocalDeploymentStore:
         )
 
     def get_summary(self):
+
         data = self._load_data()
 
         return data.get(
@@ -81,16 +110,26 @@ class LocalDeploymentStore:
             DEFAULT_DATA["summary"]
         )
 
-    def get_deployment(self, deployment_id):
+    def get_deployment(
+        self,
+        deployment_id
+    ):
+
         deployments = self.get_deployments()
 
         for deployment in deployments:
+
             if deployment.get("id") == deployment_id:
+
                 return deployment
 
         return None
 
-    def save_deployment(self, deployment):
+    def save_deployment(
+        self,
+        deployment
+    ):
+
         data = self._load_data()
 
         deployments = data.get(
@@ -98,7 +137,19 @@ class LocalDeploymentStore:
             []
         )
 
-        # Add newest deployment at the beginning
+        deployment = dict(
+            deployment
+        )
+
+        # Add timestamp if missing
+        deployment.setdefault(
+            "createdAt",
+            datetime.now(
+                timezone.utc
+            ).isoformat()
+        )
+
+        # Newest deployment first
         deployments.insert(
             0,
             deployment
@@ -108,21 +159,29 @@ class LocalDeploymentStore:
 
         # Update dashboard summary
         data["summary"] = {
-            "riskScore": deployment.get(
-                "riskScore",
-                0
-            ),
-            "riskLevel": deployment.get(
-                "riskLevel",
-                "SAFE"
-            ),
-            "decision": deployment.get(
-                "decision",
-                "APPROVED"
-            )
+
+            "riskScore":
+                deployment.get(
+                    "riskScore",
+                    0
+                ),
+
+            "riskLevel":
+                deployment.get(
+                    "riskLevel",
+                    "SAFE"
+                ),
+
+            "decision":
+                deployment.get(
+                    "decision",
+                    "APPROVED"
+                )
         }
 
-        self._save_data(data)
+        self._save_data(
+            data
+        )
 
         return deployment
 
@@ -131,6 +190,7 @@ class LocalDeploymentStore:
         deployment_id,
         updates
     ):
+
         data = self._load_data()
 
         deployments = data.get(
@@ -154,6 +214,10 @@ class LocalDeploymentStore:
 
         return None
 
+
+# =========================================================
+# DYNAMODB STORAGE
+# =========================================================
 
 class DynamoDBDeploymentStore:
     """Deployment storage using Amazon DynamoDB."""
@@ -179,14 +243,35 @@ class DynamoDBDeploymentStore:
             self.table_name
         )
 
+    # -----------------------------------------------------
+    # GET ALL DEPLOYMENTS
+    # -----------------------------------------------------
+
     def get_deployments(self):
 
         response = self.table.scan()
 
-        return response.get(
+        deployments = response.get(
             "Items",
             []
         )
+
+        # DynamoDB scan does not guarantee order.
+        # Sort by creation time so newest appears first.
+        deployments.sort(
+            key=lambda item:
+                item.get(
+                    "createdAt",
+                    ""
+                ),
+            reverse=True
+        )
+
+        return deployments
+
+    # -----------------------------------------------------
+    # GET SINGLE DEPLOYMENT
+    # -----------------------------------------------------
 
     def get_deployment(
         self,
@@ -195,7 +280,8 @@ class DynamoDBDeploymentStore:
 
         response = self.table.get_item(
             Key={
-                "deploymentId": deployment_id
+                "deploymentId":
+                    deployment_id
             }
         )
 
@@ -203,41 +289,68 @@ class DynamoDBDeploymentStore:
             "Item"
         )
 
+    # -----------------------------------------------------
+    # GET SUMMARY
+    # -----------------------------------------------------
+
     def get_summary(self):
 
         deployments = self.get_deployments()
 
         if not deployments:
-            return DEFAULT_DATA["summary"].copy()
+
+            return DEFAULT_DATA[
+                "summary"
+            ].copy()
 
         latest = deployments[0]
 
         return {
-            "riskScore": latest.get(
-                "riskScore",
-                0
-            ),
-            "riskLevel": latest.get(
-                "riskLevel",
-                "SAFE"
-            ),
-            "decision": latest.get(
-                "decision",
-                "APPROVED"
-            )
+
+            "riskScore":
+                latest.get(
+                    "riskScore",
+                    0
+                ),
+
+            "riskLevel":
+                latest.get(
+                    "riskLevel",
+                    "SAFE"
+                ),
+
+            "decision":
+                latest.get(
+                    "decision",
+                    "APPROVED"
+                )
         }
+
+    # -----------------------------------------------------
+    # SAVE DEPLOYMENT
+    # -----------------------------------------------------
 
     def save_deployment(
         self,
         deployment
     ):
 
-        item = dict(deployment)
+        item = dict(
+            deployment
+        )
 
         # DynamoDB partition key
         item["deploymentId"] = item.get(
             "id",
             "UNKNOWN"
+        )
+
+        # Creation timestamp
+        item.setdefault(
+            "createdAt",
+            datetime.now(
+                timezone.utc
+            ).isoformat()
         )
 
         self.table.put_item(
@@ -246,6 +359,10 @@ class DynamoDBDeploymentStore:
 
         return deployment
 
+    # -----------------------------------------------------
+    # UPDATE DEPLOYMENT
+    # -----------------------------------------------------
+
     def update_deployment(
         self,
         deployment_id,
@@ -253,17 +370,21 @@ class DynamoDBDeploymentStore:
     ):
 
         if not updates:
+
             return self.get_deployment(
                 deployment_id
             )
 
         update_parts = []
+
         expression_names = {}
+
         expression_values = {}
 
         for key, value in updates.items():
 
             safe_name = f"#{key}"
+
             safe_value = f":{key}"
 
             update_parts.append(
@@ -279,19 +400,27 @@ class DynamoDBDeploymentStore:
             ] = value
 
         response = self.table.update_item(
+
             Key={
-                "deploymentId": deployment_id
+                "deploymentId":
+                    deployment_id
             },
+
             UpdateExpression=(
                 "SET "
-                + ", ".join(update_parts)
+                + ", ".join(
+                    update_parts
+                )
             ),
+
             ExpressionAttributeNames=(
                 expression_names
             ),
+
             ExpressionAttributeValues=(
                 expression_values
             ),
+
             ReturnValues="ALL_NEW"
         )
 
@@ -300,9 +429,13 @@ class DynamoDBDeploymentStore:
         )
 
 
+# =========================================================
+# STORE FACTORY
+# =========================================================
+
 def create_store():
     """
-    Select the deployment storage backend.
+    Select deployment storage backend.
 
     USE_DYNAMODB=true
         -> Amazon DynamoDB
@@ -317,26 +450,37 @@ def create_store():
     ).lower() == "true"
 
     if use_dynamodb:
+
         return DynamoDBDeploymentStore()
 
     return LocalDeploymentStore()
 
 
-# Create the active storage backend
+# =========================================================
+# ACTIVE STORE
+# =========================================================
+
 store = create_store()
 
 
+# =========================================================
+# PUBLIC FUNCTIONS
+# =========================================================
+
 def get_deployments():
+
     return store.get_deployments()
 
 
 def get_summary():
+
     return store.get_summary()
 
 
 def get_deployment(
     deployment_id
 ):
+
     return store.get_deployment(
         deployment_id
     )
@@ -345,6 +489,7 @@ def get_deployment(
 def save_deployment(
     deployment
 ):
+
     return store.save_deployment(
         deployment
     )
@@ -354,28 +499,40 @@ def update_deployment(
     deployment_id,
     updates
 ):
+
     return store.update_deployment(
         deployment_id,
         updates
     )
 
 
+# =========================================================
+# TEST / DEBUG
+# =========================================================
+
 if __name__ == "__main__":
+
+    print(
+        "========================================"
+    )
 
     print(
         "DeployGuard Nexus Deployment Store"
     )
 
     print(
-        "-----------------------------------"
+        "========================================"
     )
 
     mode = (
+
         "DynamoDB"
+
         if os.getenv(
             "USE_DYNAMODB",
             "false"
         ).lower() == "true"
+
         else "LOCAL"
     )
 
@@ -383,12 +540,16 @@ if __name__ == "__main__":
         f"Storage mode: {mode}"
     )
 
+    print()
+
     deployments = get_deployments()
 
     print(
         f"Total deployments: "
         f"{len(deployments)}"
     )
+
+    print()
 
     for deployment in deployments:
 
@@ -401,5 +562,10 @@ if __name__ == "__main__":
             "| Status:",
             deployment.get(
                 "status"
+            ),
+            "| Rollback:",
+            deployment.get(
+                "rollback",
+                False
             )
         )
